@@ -297,39 +297,68 @@ class GuidedI2VPipeline:
         decoded_01 = decoded_01.clamp(0, 1)
 
         # --- Compute guidance losses ---
-        total_loss = torch.tensor(0.0, device=latents.device, requires_grad=True)
-
+        # Check if any module is an AdaptiveCompositeGuidance
+        adaptive_mod = None
         for mod in self.guidance_modules:
-            if not mod.should_guide_at_step(step_index, total_steps):
-                continue
+            if isinstance(mod, AdaptiveCompositeGuidance):
+                adaptive_mod = mod
+                break
 
-            mod_targets = targets.get(mod.name, {})
-            if not mod_targets:
-                continue
-
-            loss = mod.compute_loss(decoded_01, mod_targets, step_index)
-            total_loss = total_loss + mod.default_scale * loss
-
-        if total_loss.requires_grad:
-            total_loss.backward()
-
-            if latents_for_grad.grad is not None:
+        if adaptive_mod is not None:
+            # Use adaptive gradient composition
+            combined_grad = adaptive_mod.compute_adaptive_gradients(
+                latents_for_grad=latents_for_grad,
+                decoded_frames=decoded_01,
+                targets=targets,
+                step_index=step_index,
+                total_steps=total_steps,
+            )
+            if combined_grad.norm() > 1e-8:
                 guided_latents = apply_guidance_gradient(
                     latents.detach().clone(),
-                    latents_for_grad.grad.detach(),
+                    combined_grad.detach(),
                     guidance_scale=cfg.guidance_scale,
                     grad_clip=cfg.grad_clip,
                 )
-
                 logger.debug(
-                    "Step %d: guidance loss=%.4f, grad_norm=%.6f",
-                    step_index,
-                    total_loss.item(),
-                    latents_for_grad.grad.norm().item(),
+                    "Step %d (adaptive): grad_norm=%.6f",
+                    step_index, combined_grad.norm().item(),
                 )
                 return guided_latents
-            else:
-                logger.warning("Step %d: no gradient computed", step_index)
+        else:
+            total_loss = torch.tensor(0.0, device=latents.device, requires_grad=True)
+
+            for mod in self.guidance_modules:
+                if not mod.should_guide_at_step(step_index, total_steps):
+                    continue
+
+                mod_targets = targets.get(mod.name, {})
+                if not mod_targets:
+                    continue
+
+                loss = mod.compute_loss(decoded_01, mod_targets, step_index)
+                total_loss = total_loss + mod.default_scale * loss
+
+            if total_loss.requires_grad:
+                total_loss.backward()
+
+                if latents_for_grad.grad is not None:
+                    guided_latents = apply_guidance_gradient(
+                        latents.detach().clone(),
+                        latents_for_grad.grad.detach(),
+                        guidance_scale=cfg.guidance_scale,
+                        grad_clip=cfg.grad_clip,
+                    )
+
+                    logger.debug(
+                        "Step %d: guidance loss=%.4f, grad_norm=%.6f",
+                        step_index,
+                        total_loss.item(),
+                        latents_for_grad.grad.norm().item(),
+                    )
+                    return guided_latents
+                else:
+                    logger.warning("Step %d: no gradient computed", step_index)
 
         return latents
 

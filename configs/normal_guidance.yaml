@@ -1,0 +1,18 @@
+guidance:
+  type: normal
+  model_id: "prs-eth/marigold-normals-v1-1"
+  guidance_scale: 45.0
+  guidance_steps_ratio: 0.5
+  loss_type: "cosine"
+
+pipeline:
+  model_id: "Wan-AI/Wan2.1-I2V-14B-480P-Diffusers"
+  num_frames: 33
+  num_inference_steps: 30
+  cfg_scale: 5.0
+  frame_subsample_rate: 4
+  grad_clip: 1.0
+
+output:
+  fps: 16
+  format: "mp4"

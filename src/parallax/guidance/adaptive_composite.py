@@ -13,6 +13,7 @@ import logging
 from typing import Any, Dict, List, Optional, Tuple
 
 import torch
+import torch.nn.functional as F
 from torch import Tensor
 
 from parallax.guidance.base import GuidanceModule
@@ -181,8 +182,11 @@ class AdaptiveCompositeGuidance(GuidanceModule):
             if scaled_loss.requires_grad:
                 # Compute gradient w.r.t. latent
                 grad = torch.autograd.grad(
-                    scaled_loss, latents_for_grad, retain_graph=True
+                    scaled_loss, latents_for_grad,
+                    retain_graph=True, allow_unused=True,
                 )[0]
+                if grad is None:
+                    continue
                 module_grads.append((mod.name, weight, grad))
                 logger.debug(
                     "Module %s: loss=%.4f, grad_norm=%.6f",

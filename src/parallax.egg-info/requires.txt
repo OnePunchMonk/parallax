@@ -11,11 +11,14 @@ tqdm>=4.66.0
 einops>=0.7.0
 
 [all]
-parallax[dev,sam2]
+parallax[dev,eval,sam2]
 
 [dev]
 pytest>=7.4.0
 pytest-mock>=3.12.0
+
+[eval]
+clip-benchmark>=1.0.0
 
 [sam2]
 segment-anything-2>=0.1.0

@@ -1,0 +1,41 @@
+# Adaptive multi-guidance composition
+# Uses gradient normalization and conflict detection
+
+guidance:
+  type: adaptive
+  modules:
+    - type: depth
+      model_id: "depth-anything/Depth-Anything-V2-Small-hf"
+      weight: 1.0
+    - type: normal
+      model_id: "prs-eth/marigold-normals-v1-1"
+      weight: 0.9
+    - type: semantic
+      model_id: "facebook/dinov2-small"
+      weight: 0.6
+    - type: flow
+      model_name: "raft_small"
+      mode: "smoothness"
+      weight: 0.7
+  normalize_gradients: true
+  conflict_threshold: -0.1
+
+  # Per-module temporal scheduling
+  schedule:
+    depth: [0.0, 0.5]      # Guide depth in first half
+    normal: [0.0, 0.5]     # Guide normals in first half
+    semantic: [0.1, 0.6]   # Semantic starts slightly later
+    flow: [0.2, 0.8]       # Flow active longer for temporal coherence
+
+pipeline:
+  model_id: "Wan-AI/Wan2.1-I2V-14B-480P-Diffusers"
+  num_frames: 33
+  num_inference_steps: 30
+  cfg_scale: 5.0
+  frame_subsample_rate: 4
+  grad_clip: 1.0
+  guidance_scale: 50.0
+
+output:
+  fps: 16
+  format: "mp4"
