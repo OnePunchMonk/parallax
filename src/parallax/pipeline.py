@@ -19,6 +19,7 @@ from torch import Tensor
 from tqdm.auto import tqdm
 
 from parallax.guidance.base import GuidanceModule
+from parallax.guidance.adaptive_composite import AdaptiveCompositeGuidance
 from parallax.utils.latent_utils import (
     apply_guidance_gradient,
     compute_x0_prediction,
@@ -359,6 +360,8 @@ class GuidedI2VPipeline:
             "depth": ["target_depth"],
             "semantic": ["reference_image"],
             "segmentation": ["target_mask", "input_points", "input_boxes"],
+            "normal": ["target_normal"],
+            "flow": ["target_flow"],
         }
         keys = target_map.get(mod.name, [])
         return {k: kwargs[k] for k in keys if k in kwargs}
